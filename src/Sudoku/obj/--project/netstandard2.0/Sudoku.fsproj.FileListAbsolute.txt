@@ -1,0 +1,8 @@
+/home/jgunter/Projects/fsudoku/src/Sudoku/bin/--project/netstandard2.0/Sudoku.deps.json
+/home/jgunter/Projects/fsudoku/src/Sudoku/bin/--project/netstandard2.0/Sudoku.dll
+/home/jgunter/Projects/fsudoku/src/Sudoku/bin/--project/netstandard2.0/Sudoku.pdb
+/home/jgunter/Projects/fsudoku/src/Sudoku/obj/--project/netstandard2.0/Sudoku.fsprojAssemblyReference.cache
+/home/jgunter/Projects/fsudoku/src/Sudoku/obj/--project/netstandard2.0/Sudoku.AssemblyInfoInputs.cache
+/home/jgunter/Projects/fsudoku/src/Sudoku/obj/--project/netstandard2.0/Sudoku.AssemblyInfo.fs
+/home/jgunter/Projects/fsudoku/src/Sudoku/obj/--project/netstandard2.0/Sudoku.dll
+/home/jgunter/Projects/fsudoku/src/Sudoku/obj/--project/netstandard2.0/Sudoku.pdb
