@@ -3,7 +3,7 @@
 [<EntryPoint>]
 let main argv =
     let fileName = argv.[0] in
-    let sudoku = __SOURCE_DIRECTORY__ + "/" + fileName |> Sudoku.readSudokuFromFile in
+    let sudoku = System.Environment.CurrentDirectory + "/" + fileName |> Sudoku.readSudokuFromFile in
     let input = Sudoku.string sudoku in
     printfn "Input:\n%s\n" input;
     let stopWatch = System.Diagnostics.Stopwatch.StartNew();
