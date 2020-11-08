@@ -33,6 +33,12 @@ module Sudoku =
     let mkDefaultGrid =
         Array2D.init 9 9 (fun _ _ -> mkUnConstrainedCell)
 
+    (** Get the cell at a position in the grid. *)
+    let getCellAt pos (grid: Grid) =
+        let i = pos.Row in
+        let j = pos.Col in
+        grid.[i,j]
+
     (** Fix a position to a given value in a sudoku grid. Mutates the grid. *)
     let mutateFixPosition pos value (grid: Grid) =
         grid.[pos.Row, pos.Col] <- Fixed value
@@ -160,24 +166,22 @@ module Sudoku =
 
         (** Given the position of a Fixed cell, prune the value in the fixed cell from
             all other cells in the Fixed cell's neighborhood. *)
-        let pruneEqual fixedpos (sudoku: Grid) =
-            let i = fixedpos.Row in
-            let j = fixedpos.Col in
-            match sudoku.[i,j] with
-            | Empty -> ()
-            | Unfixed _ -> invalidArg "fixedpos" "The cell at this position is not fixed and cannot be used to prune other cells."
-            | Fixed value -> standardNeighborhood fixedpos |> removeValueFromOptions value sudoku
+        let pruneFromNeighbors fixedPos (sudoku: Grid) =
+            match getCellAt fixedPos sudoku with
+            | Empty -> invalidArg "fixedPos" "The cell at this position is not fixed and cannot be used to prune other cells."
+            | Unfixed _ -> invalidArg "fixedPos" "The cell at this position is not fixed and cannot be used to prune other cells."
+            | Fixed value -> standardNeighborhood fixedPos |> removeValueFromOptions value sudoku
 
-        (** Compute the position of all Fixed cells in the grid. *)
-        let fixedPositions (sudoku: Grid) =
+        (** Compute all positions in the grid satisfying a predicate. *)
+        let getPositionsWhere predicate (sudoku: Grid) =
             let maybeFixedPositions =
                 let nRows = Array2D.length1 sudoku in
                 let nCols = Array2D.length2 sudoku in
                 seq { for i = 0 to nRows-1 do
                         for j = 0 to nCols-1 do
-                            match sudoku.[i,j] with
-                            | Fixed _ -> Some { Row=i; Col=j }
-                            | _ -> None } in
+                            match predicate sudoku.[i,j] with
+                            | true -> Some { Row=i; Col=j }
+                            | false -> None } in
             let rec filterSomes ls =
                 match ls with
                 | (Some x) :: tail -> x :: filterSomes tail
@@ -185,12 +189,29 @@ module Sudoku =
                 | [] -> []
             maybeFixedPositions |> List.ofSeq |> filterSomes
 
-        (** Prune all fixed cells in the grid. *)
-        let pruneAll sudoku =
+        (** Get list of the positions of Fixed cells in the grid. *)
+        let fixedPositions = 
+            let isFixed cell = 
+                match cell with
+                | Fixed _ -> true
+                | _ -> false
+            in getPositionsWhere isFixed
+
+        (** Get list of the positions of Unfixed cells in the grid. *)
+        let unfixedPositions =
+            let isUnfixed cell =
+                match cell with
+                | Unfixed _ -> true
+                | _ -> false
+            in getPositionsWhere isUnfixed
+
+        (** Apply constraints to prune options in unfixed cells in the grid. *)
+        let applyConstraints sudoku alreadyFixed =
             let outputSudoku = Array2D.copy sudoku in
-            for pos in (fixedPositions sudoku) do
-                pruneEqual pos outputSudoku
-            outputSudoku
+            let newFixedPositions = fixedPositions sudoku |> List.except alreadyFixed in 
+            for pos in newFixedPositions do
+                pruneFromNeighbors pos outputSudoku
+            outputSudoku, Set.ofList newFixedPositions
 
     // End of Constraints module.
 
@@ -213,23 +234,23 @@ module Sudoku =
         (** Main solving loop. This iteratively prunes all fixed nodes in the sudoku until
             no further progress may be made through pruning, then applies bifurcation to
             continue the solving process. *)
-        let rec solvingLoop sudoku =
+        let rec solvingLoop sudoku alreadyFixed =
             if containsContradiction sudoku then
                 None
             else if solved sudoku then
                 Some sudoku
             else
-                let sudokuAfterSolving = Constraints.pruneAll sudoku in
-                if sudoku = sudokuAfterSolving then
-                    bifurcate sudokuAfterSolving
+                let constrainedSudoku, newFixed = Constraints.applyConstraints sudoku alreadyFixed in
+                if sudoku = constrainedSudoku then
+                    bifurcate constrainedSudoku newFixed
                 else
-                    solvingLoop sudokuAfterSolving
+                    solvingLoop constrainedSudoku newFixed
         (** Perform bifurcation. This selects a cell with a minimal option count and 
             makes a guess as to what the value should be, then explores that branch.
             If that branch ends in a contradiction, then the next possible value is
             selected and that branch is explored. If all branches end in contradiction,
             then the sudoku has no solution. *)
-        and bifurcate sudoku =
+        and bifurcate sudoku alreadyFixed =
             (** Bifurcate on the given position. *)
             let bifurcateOn pos (sudoku: Grid) =
                 let cell = sudoku.[pos.Row, pos.Col] in
@@ -263,8 +284,8 @@ module Sudoku =
                 match bifurcatedList with
                 | LazyList.Nil -> None
                 | LazyList.Cons (candidate,rest) ->
-                    match solvingLoop candidate with
+                    match solvingLoop candidate alreadyFixed with
                     | None -> processList rest
                     | Some solution -> Some solution
             processList (bifurcateOn position sudoku)
-        solvingLoop sudoku
+        solvingLoop sudoku (Set([]))
